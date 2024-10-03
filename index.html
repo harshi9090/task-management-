@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management App</title>
+   <style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        color: #333;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    input[type="text"], button {
+        width: calc(100% - 22px);
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        transition: background-color 0.3s, color 0.3s, border 0.3s;
+    }
+
+    input[type="text"]:focus {
+        border-color: #007bff;
+    }
+
+    button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    ul {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    li {
+        padding: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #ddd;
+    }
+
+    /* Add margin between buttons */
+    li button {
+        margin-left: 10px;
+    }
+
+    .completed {
+        text-decoration: line-through;
+        color: gray;
+    }
+
+    /* Dark mode styles */
+    .dark-mode {
+        background-color: #333;
+        color: white;
+    }
+
+    .dark-mode .container {
+        background-color: #444;
+        color: white;
+        box-shadow: none;
+    }
+
+    .dark-mode input[type="text"], .dark-mode button {
+        background-color: #555;
+        color: white;
+        border: 1px solid #777;
+    }
+
+    .dark-mode button {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .dark-mode button:hover {
+        background-color: #0056b3;
+    }
+
+    .dark-mode li {
+        border-bottom: 1px solid #555;
+    }
+
+    .dark-mode .completed {
+        color: #888;
+    }
+
+    /* Username display */
+    #userDisplay {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+</style>
+
+</head>
+<body>
+    <div class="container">
+        <h1>Task Management App</h1>
+
+        <!-- Username input and display -->
+        <input type="text" id="username" placeholder="Enter your name" />
+        <button id="submitUsernameBtn">Submit Name</button>
+        <div id="userDisplay" style="display:none;">Welcome, <span id="userName"></span>!</div>
+
+        <!-- Dark mode toggle -->
+        <div class="theme-toggle">
+            <label for="toggle">Dark Mode</label>
+            <input type="checkbox" id="toggle" />
+        </div>
+
+        <!-- Task input and buttons -->
+        <input type="text" id="taskInput" placeholder="Add a new task" />
+        <button id="addTaskBtn">Add Task</button>
+        
+        <!-- Progress bar -->
+        <div class="progress">
+            <progress id="progressBar" value="0" max="100"></progress>
+        </div>
+
+        <!-- Pending and completed tasks -->
+        <h2>Pending Tasks</h2>
+        <ul id="pendingTasks"></ul>
+        <h2>Completed Tasks</h2>
+        <ul id="completedTasks"></ul>
+    </div>
+
+    <script>
+        let tasks = [];
+        const taskInput = document.getElementById('taskInput');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        const pendingTasksList = document.getElementById('pendingTasks');
+        const completedTasksList = document.getElementById('completedTasks');
+        const progressBar = document.getElementById('progressBar');
+        const usernameInput = document.getElementById('username');
+        const submitUsernameBtn = document.getElementById('submitUsernameBtn');
+        const userDisplay = document.getElementById('userDisplay');
+        const userNameDisplay = document.getElementById('userName');
+        const toggle = document.getElementById('toggle');
+        let editIndex = null; 
+
+        // Handle username submission
+        submitUsernameBtn.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            if (username) {
+                userNameDisplay.textContent = username;
+                userDisplay.style.display = 'block';
+                loadTasks(username);
+            }
+        });
+
+        // Handle adding tasks
+        addTaskBtn.addEventListener('click', () => {
+            if (editIndex !== null) {
+                updateTask();
+            } else {
+                addTask();
+            }
+        });
+
+        // Handle dark mode toggle
+        toggle.addEventListener('change', toggleTheme);
+
+        // Load tasks from localStorage
+        function loadTasks(username) {
+            const storedTasks = JSON.parse(localStorage.getItem(username)) || [];
+            tasks = storedTasks;
+            renderTasks();
+        }
+
+        function addTask() {
+            const taskName = taskInput.value.trim();
+            if (!taskName) return;
+
+            const task = {
+                name: taskName,
+                completed: false,
+            };
+            tasks.push(task);
+            taskInput.value = '';
+            saveTasks();
+            renderTasks();
+        }
+
+        function updateTask() {
+            const taskName = taskInput.value.trim();
+            if (!taskName || editIndex === null) return;
+
+            tasks[editIndex].name = taskName;
+            taskInput.value = '';
+            editIndex = null;
+            saveTasks();
+            renderTasks();
+        }
+
+        function toggleTask(index) {
+            tasks[index].completed = !tasks[index].completed;
+            saveTasks();
+            renderTasks();
+        }
+
+        function deleteTask(index) {
+            tasks.splice(index, 1);
+            saveTasks();
+            renderTasks();
+        }
+
+        function editTask(index) {
+            taskInput.value = tasks[index].name;
+            editIndex = index;
+        }
+
+        function renderTasks() {
+            pendingTasksList.innerHTML = '';
+            completedTasksList.innerHTML = '';
+            tasks.forEach((task, index) => {
+                const li = document.createElement('li');
+                li.textContent = task.name;
+                if (task.completed) {
+                    li.classList.add('completed');
+                    li.innerHTML += ` <button onclick="deleteTask(${index})">Delete</button>`;
+                    completedTasksList.appendChild(li);
+                } else {
+                    li.innerHTML += `
+                        <button onclick="toggleTask(${index})">Complete</button>
+                        <button onclick="editTask(${index})">Edit</button>
+                        <button onclick="deleteTask(${index})">Delete</button>`;
+                    pendingTasksList.appendChild(li);
+                }
+            });
+            updateProgressBar();
+        }
+
+        function updateProgressBar() {
+            const completedCount = tasks.filter(task => task.completed).length;
+            const totalCount = tasks.length;
+            progressBar.value = totalCount ? (completedCount / totalCount) * 100 : 0;
+        }
+
+        function saveTasks() {
+            const username = usernameInput.value.trim();
+            if (username) {
+                localStorage.setItem(username, JSON.stringify(tasks));
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+        }
+    </script>
+</body>
+</html>
